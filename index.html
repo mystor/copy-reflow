@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+  <body>
+    <button id="button">selectFake</button>
+    <button id="button2">selectDataTransfer</button>
+
+    <script>
+// Hacky test script
+
+var text = "";
+for (var i=0; i != 100000; ++i) {
+  text += "I am a very long text\n";
+}
+
+function makeTextArea() {
+  var isRTL = document.documentElement.getAttribute('dir') == 'rtl';
+
+  var fakeElem = document.createElement('textarea');
+  // Prevent zooming on iOS
+  fakeElem.style.fontSize = '12pt';
+  // Reset box model
+  fakeElem.style.border = '0';
+  fakeElem.style.padding = '0';
+  fakeElem.style.margin = '0';
+  // Move element out of screen horizontally
+  fakeElem.style.position = 'absolute';
+  fakeElem.style[isRTL ? 'right' : 'left'] = '-9999px';
+  // Move element to the same position vertically
+  var yPosition = window.pageYOffset || document.documentElement.scrollTop;
+  fakeElem.style.top = yPosition + 'px';
+
+  fakeElem.setAttribute('readonly', '');
+
+  return fakeElem;
+}
+
+// This has behavior which is similar to the behavior from Clipboard.js
+function selectFake() {
+  var fakeElem = makeTextArea();
+  fakeElem.value = text;
+
+  document.body.appendChild(fakeElem);
+
+  fakeElem.select();
+  fakeElem.setSelectionRange(0, fakeElem.value.length);
+
+  console.log("execCommand =", document.execCommand("copy"));
+}
+
+// This is implemented by directly copying the text into the DataTransfer.
+function selectDataTransfer() {
+  // Register a copy handler which will directly add the text to the DataTransfer object.
+  function copyHandler(event) {
+    if (event.clipboardData) {
+      event.clipboardData.setData("text/plain", text);
+    } else {
+      // Internet Explorer is special, and needs to be given both a different
+      // MIME type, and have the method called on a different object.
+      clipboardData.setData("Text", text);
+    }
+    console.log("Added text");
+    event.preventDefault();
+  }
+  document.addEventListener("copy", copyHandler);
+
+  // Create a dummy text area and select it, as Safari and Edge require the
+  // text area to be selected to trigger an execCommand("copy")
+  var fakeElem = makeTextArea();
+  fakeElem.value = "a";
+  document.body.appendChild(fakeElem);
+  fakeElem.select();
+  fakeElem.setSelectionRange(0, fakeElem.value.length);
+
+  // Trigger the copy command, and then remove the event listener
+  console.log("execCommand =", document.execCommand("copy"));
+  document.removeEventListener("copy", copyHandler);
+}
+
+function time(fn, name) {
+  var start = +new Date();
+  console.log(start);
+
+  fn();
+
+  var end = +new Date();
+  console.log(end);
+  console.log(end - start);
+  alert(name + " Time: " + (end - start));
+}
+
+document.querySelector("#button").addEventListener("click", function(evt) {
+  time(selectFake, "Fake Node");
+});
+
+document.querySelector("#button2").addEventListener("click", function(evt) {
+  time(selectDataTransfer, "Event Copy");
+});
+    </script>
+  </body>
+</html>
